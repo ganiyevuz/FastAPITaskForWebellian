@@ -3,21 +3,23 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_scoped_session
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    AsyncSession,
+    async_scoped_session,
+)
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
 from services.config import settings
 
 engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=True,
-    future=True,
-    pool_size=20,
-    max_overflow=30
+    settings.DATABASE_URL, echo=True, future=True, pool_size=20, max_overflow=30
 )
 
-async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession, future=True)  # noqa: type checking
+async_session = sessionmaker(
+    engine, expire_on_commit=False, class_=AsyncSession, future=True
+)  # noqa: type checking
 
 AsyncScopedSession = async_scoped_session(async_session, scopefunc=current_task)
 

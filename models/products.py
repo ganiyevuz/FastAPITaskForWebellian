@@ -13,12 +13,12 @@ class Product(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=datetime.now,
         sa_column_kwargs={"nullable": False},
-        sa_type=DateTime
+        sa_type=DateTime,
     )
     updated_at: datetime = Field(
         default_factory=datetime.now,
         sa_column_kwargs={"nullable": False, "onupdate": datetime.now},
-        sa_type=DateTime
+        sa_type=DateTime,
     )
 
     catalog_id: int = Field(foreign_key="catalog.catalog_id")
@@ -31,28 +31,30 @@ class Product(SQLModel, table=True):
     #     return instance
 
     @classmethod
-    async def all(cls, db: AsyncSession, limit: int = 100, offset: int = 0) -> Sequence["Product"]:
-        statement = select(cls).limit(limit).offset(offset).order_by(cls.created_at.desc())
+    async def all(
+        cls, db: AsyncSession, limit: int = 100, offset: int = 0
+    ) -> Sequence["Product"]:
+        statement = (
+            select(cls).limit(limit).offset(offset).order_by(cls.created_at.desc())
+        )
         result = await db.execute(statement)
         return result.scalars().all()
 
     @classmethod
-    async def create(cls, db: AsyncSession, name: str, catalog_id: int):
-        instance = cls(name=name, catalog_id=catalog_id)
+    async def create(cls, db: AsyncSession, name: str, price: float, catalog_id: int):
+        instance = cls(name=name, price=price, catalog_id=catalog_id)
         db.add(instance)
         await db.commit()
         await db.refresh(instance)
         return instance
 
     @classmethod
-    async def bulk_create(cls, db, products: Sequence["Product"]) -> Sequence["Product"]:
+    async def bulk_create(
+        cls, db, products: Sequence["Product"]
+    ) -> Sequence["Product"]:
         values = [p.model_dump(exclude_unset=True) for p in products]
 
-        stmt = (
-            insert(Product)
-            .values(values)
-            .returning(Product)
-        )
+        stmt = insert(Product).values(values).returning(Product)
         result = await db.execute(stmt)
         await db.commit()
         return result.scalars().all()
@@ -60,7 +62,9 @@ class Product(SQLModel, table=True):
     async def update(self, db: AsyncSession, **kwargs):
         for attr, value in kwargs.items():
             # Check if the attribute exists and if its type matches the value's type
-            if (attr_val := getattr(self, attr, None)) and type(attr_val) == type(value):
+            if (attr_val := getattr(self, attr, None)) and type(attr_val) == type(
+                value
+            ):
                 setattr(self, attr, value)
         await db.commit()
         await db.refresh(self)
@@ -76,7 +80,7 @@ class Product(SQLModel, table=True):
 
     @classmethod
     async def filter_by_catalog(
-            cls, db: AsyncSession, catalog_id: int
+        cls, db: AsyncSession, catalog_id: int
     ) -> Sequence["Product"]:
         statement = select(cls).where(cls.catalog_id == catalog_id)
         result = await db.execute(statement)
@@ -84,7 +88,7 @@ class Product(SQLModel, table=True):
 
     @classmethod
     async def get_top_products(
-            cls, db: AsyncSession, top_n: int = 10, offset: int = 0
+        cls, db: AsyncSession, top_n: int = 10, offset: int = 0
     ) -> Sequence["Product"]:
         statement = select(cls).order_by(cls.price.desc()).limit(top_n).offset(offset)
         result = await db.execute(statement)

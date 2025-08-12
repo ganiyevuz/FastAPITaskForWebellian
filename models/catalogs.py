@@ -16,18 +16,17 @@ class Catalog(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=datetime.now,
         sa_column_kwargs={"nullable": False},
-        sa_type=DateTime
+        sa_type=DateTime,
     )
 
     @classmethod
-    async def all(cls, db: AsyncSession, limit: int = 100, offset: int = 0) -> Sequence["CatalogWIthProductCount"]:
+    async def all(
+        cls, db: AsyncSession, limit: int = 100, offset: int = 0
+    ) -> Sequence["CatalogWIthProductCount"]:
         product_alias = aliased(Product)
 
         statement = (
-            select(
-                cls,
-                func.count(product_alias.product_id).label("products_count")
-            )
+            select(cls, func.count(product_alias.product_id).label("products_count"))
             .outerjoin(product_alias, product_alias.catalog_id == cls.catalog_id)
             .group_by(cls.catalog_id)
             .order_by(cls.created_at.desc())
@@ -38,10 +37,7 @@ class Catalog(SQLModel, table=True):
         result = await db.execute(statement)
         rows = result.all()
         return [
-            CatalogWIthProductCount(
-                **catalog.dict(),
-                products_count=products_count
-            )
+            CatalogWIthProductCount(**catalog.dict(), products_count=products_count)
             for catalog, products_count in rows
         ]
 
@@ -58,13 +54,11 @@ class Catalog(SQLModel, table=True):
         return instance
 
     @classmethod
-    async def bulk_create(cls, db, catalogs: Sequence["Catalog"]) -> Sequence["Catalog"]:
+    async def bulk_create(
+        cls, db, catalogs: Sequence["Catalog"]
+    ) -> Sequence["Catalog"]:
         values = [c.model_dump(exclude_unset=True) for c in catalogs]
-        stmt = (
-            insert(Catalog)
-            .values(values)
-            .returning(Catalog)
-        )
+        stmt = insert(Catalog).values(values).returning(Catalog)
         result = await db.execute(stmt)
         await db.commit()
         return result.scalars().all()

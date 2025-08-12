@@ -12,6 +12,6 @@ async def lifespan(app: FastAPI):  # noqa: Shadows name 'app' from outer scope
     yield
 
 
-app = FastAPI(lifespan=lifespan, docs_url='/')
+app = FastAPI(lifespan=lifespan, docs_url="/")
 app.include_router(catalogs_router)
 app.include_router(products_router)

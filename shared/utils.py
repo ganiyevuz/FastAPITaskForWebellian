@@ -31,13 +31,15 @@ def load_catalogs(file, raise_on_error=False):
         created_at = parse_datetime(row.get("created_at"))
 
         if not (name and created_at):
-            logger.warning("Skipping row with missing or invalid 'name' or 'created_at'")
+            logger.warning(
+                "Skipping row with missing or invalid 'name' or 'created_at'"
+            )
             if raise_on_error:
                 raise ValueError("Row must contain valid 'name' and 'created_at'")
             skips += 1
             continue
         catalogs.append(Catalog(name=name.strip(), created_at=created_at))
-        logger.info(f'Loaded catalog: {name.strip()} created at: {created_at}')
+        logger.info(f"Loaded catalog: {name.strip()} created at: {created_at}")
         success += 1
     logger.info(f"Successfully loaded {success} catalogs, {skips} Skipped entries")
     return catalogs
@@ -82,8 +84,17 @@ async def load_products(file, raise_on_error=False):
             continue
 
         products.append(
-            Product(name=name.strip(), price=price, created_at=created_at, updated_at=updated_at, catalog_id=catalog))
-        logger.info(f'Loaded product: {name.strip()} with price: {price} and catalog_id: {catalog}')
+            Product(
+                name=name.strip(),
+                price=price,
+                created_at=created_at,
+                updated_at=updated_at,
+                catalog_id=catalog,
+            )
+        )
+        logger.info(
+            f"Loaded product: {name.strip()} with price: {price} and catalog_id: {catalog}"
+        )
         success += 1
     logger.info(f"Successfully loaded {success} products, {skips} Skipped entries")
     return products
