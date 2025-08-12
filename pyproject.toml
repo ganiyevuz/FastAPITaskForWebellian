@@ -1,0 +1,16 @@
+[project]
+name = "fastapitaskforwebellian"
+version = "0.1.0"
+package = true
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "fastapi[standard]>=0.116.1",
+    "greenlet>=3.2.4",
+    "uvicorn>=0.35.0",
+    "pydantic-settings>=2.10.1",
+    "python-dotenv>=1.1.1",
+    "sqlmodel>=0.0.24",
+    "loguru>=0.7.3",
+]
