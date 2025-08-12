@@ -9,8 +9,6 @@ from sqlmodel import SQLModel
 
 from services.config import settings
 
-# DATABASE_URL = "postgresql+asyncpg://postgres:1@localhost:5433/fastapi"
-
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=True,

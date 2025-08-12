@@ -1,21 +1,27 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.params import Depends
+from shutil import copyfileobj
+
+from fastapi import APIRouter, HTTPException, File, UploadFile
+
+from fastapi.params import Depends, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Catalog
 from schemas import ErrorResponse
-from schemas.catalogs import CatalogCreate
+from schemas.catalogs import CatalogCreate, CatalogWIthProductCount
 from services.engine import get_session
+from services.pagination import PaginatedResponse
 from shared.exeptions import CatalogNotFound
+from shared.utils import load_catalogs
 
 catalogs_router = APIRouter(tags=['Catalogs'], prefix='/api/v1')
 
 
-@catalogs_router.get('/catalogs', response_model=list[Catalog] | None, summary="Get all catalogs")
-async def get_catalogs(session: AsyncSession = Depends(get_session)):
+@catalogs_router.get('/catalogs', response_model=PaginatedResponse[CatalogWIthProductCount] | None, summary="Get all catalogs")
+async def get_catalogs(limit: int = Query(100, ge=0), offset: int = Query(0, ge=0),
+                       session: AsyncSession = Depends(get_session)):
     async with session as db:
-        catalogs = await Catalog.all(db)
-    return catalogs
+        catalogs = await Catalog.all(db, limit=limit, offset=offset)
+    return PaginatedResponse(count=len(catalogs), items=catalogs)  # type: ignore
 
 
 @catalogs_router.get(
@@ -66,3 +72,20 @@ async def delete_catalog(catalog_id: int, session: AsyncSession = Depends(get_se
             raise CatalogNotFound()
         await catalog.delete(db)
         return catalog
+
+
+# ETL Routers
+
+@catalogs_router.post('/etl/catalogs', summary="ETL Catalogs")
+async def etl_catalogs(file: UploadFile = File(...), session: AsyncSession = Depends(get_session)):
+    if not file.content_type == 'text/csv':
+        raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are allowed.")
+    async with session as db:
+        try:
+            catalogs = load_catalogs(file.file)
+            if not catalogs:
+                raise HTTPException(status_code=400, detail="No valid catalogs found in the file.")
+            await Catalog.bulk_create(db, catalogs)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {"message": "ETL process completed successfully"}

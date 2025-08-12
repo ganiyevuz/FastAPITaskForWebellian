@@ -1,8 +1,13 @@
 from datetime import datetime
 from typing import Sequence
 
+from sqlalchemy import insert, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlmodel import Field, SQLModel, DateTime, select
+
+from models import Product
+from schemas.catalogs import CatalogWIthProductCount
 
 
 class Catalog(SQLModel, table=True):
@@ -15,10 +20,30 @@ class Catalog(SQLModel, table=True):
     )
 
     @classmethod
-    async def all(cls, db: AsyncSession) -> Sequence["Catalog"]:
-        statement = select(cls)
+    async def all(cls, db: AsyncSession, limit: int = 100, offset: int = 0) -> Sequence["CatalogWIthProductCount"]:
+        product_alias = aliased(Product)
+
+        statement = (
+            select(
+                cls,
+                func.count(product_alias.product_id).label("products_count")
+            )
+            .outerjoin(product_alias, product_alias.catalog_id == cls.catalog_id)
+            .group_by(cls.catalog_id)
+            .order_by(cls.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
         result = await db.execute(statement)
-        return result.scalars().all()
+        rows = result.all()
+        return [
+            CatalogWIthProductCount(
+                **catalog.dict(),
+                products_count=products_count
+            )
+            for catalog, products_count in rows
+        ]
 
     @classmethod
     async def get_by_id(cls, db: AsyncSession, catalog_id: int) -> "Catalog | None":
@@ -34,11 +59,15 @@ class Catalog(SQLModel, table=True):
 
     @classmethod
     async def bulk_create(cls, db, catalogs: Sequence["Catalog"]) -> Sequence["Catalog"]:
-        db.add_all(catalogs)
+        values = [c.model_dump(exclude_unset=True) for c in catalogs]
+        stmt = (
+            insert(Catalog)
+            .values(values)
+            .returning(Catalog)
+        )
+        result = await db.execute(stmt)
         await db.commit()
-        for catalog in catalogs:
-            await db.refresh(catalog)
-        return catalogs
+        return result.scalars().all()
 
     async def update(self, db, name: str):
         self.name = name

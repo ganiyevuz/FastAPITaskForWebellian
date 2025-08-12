@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from sqlmodel import SQLModel
 
 from routers import products_router, catalogs_router
-from services.engine import get_session, engine, init_db
+from services.engine import init_db
 
 
 @asynccontextmanager

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Sequence
 
+from sqlalchemy import insert, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Field, SQLModel, DateTime, select
 
@@ -8,6 +9,7 @@ from sqlmodel import Field, SQLModel, DateTime, select
 class Product(SQLModel, table=True):
     product_id: int | None = Field(default=None, primary_key=True)
     name: str
+    price: float | None = Field(default=0, sa_column_kwargs={"nullable": False})
     created_at: datetime = Field(
         default_factory=datetime.now,
         sa_column_kwargs={"nullable": False},
@@ -29,8 +31,8 @@ class Product(SQLModel, table=True):
     #     return instance
 
     @classmethod
-    async def all(cls, db: AsyncSession) -> Sequence["Product"]:
-        statement = select(cls)
+    async def all(cls, db: AsyncSession, limit: int = 100, offset: int = 0) -> Sequence["Product"]:
+        statement = select(cls).limit(limit).offset(offset).order_by(cls.created_at.desc())
         result = await db.execute(statement)
         return result.scalars().all()
 
@@ -41,6 +43,19 @@ class Product(SQLModel, table=True):
         await db.commit()
         await db.refresh(instance)
         return instance
+
+    @classmethod
+    async def bulk_create(cls, db, products: Sequence["Product"]) -> Sequence["Product"]:
+        values = [p.model_dump(exclude_unset=True) for p in products]
+
+        stmt = (
+            insert(Product)
+            .values(values)
+            .returning(Product)
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+        return result.scalars().all()
 
     async def update(self, db: AsyncSession, **kwargs):
         for attr, value in kwargs.items():
@@ -64,6 +79,14 @@ class Product(SQLModel, table=True):
             cls, db: AsyncSession, catalog_id: int
     ) -> Sequence["Product"]:
         statement = select(cls).where(cls.catalog_id == catalog_id)
+        result = await db.execute(statement)
+        return result.scalars().all()
+
+    @classmethod
+    async def get_top_products(
+            cls, db: AsyncSession, top_n: int = 10, offset: int = 0
+    ) -> Sequence["Product"]:
+        statement = select(cls).order_by(cls.price.desc()).limit(top_n).offset(offset)
         result = await db.execute(statement)
         return result.scalars().all()
 
